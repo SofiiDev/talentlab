@@ -483,8 +483,8 @@ h1,h2,h3{font-family:'DM Serif Display',serif;line-height:1.18}
 // SUPABASE CONFIG — reemplazá con tus datos reales
 // Supabase → Settings → API → Project URL y anon key
 // ══════════════════════════════════════════════════════════
-const SUPABASE_URL  = 'https://aspkordcidjfhrxorvaq.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzcGtvcmRjaWRqZmhyeG9ydmFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NDMxMjAsImV4cCI6MjA4OTQxOTEyMH0.ERIH3V6iLpOkABmkKGWYYqQgB54NhWNVCZa_Yggdy_E';
+const SUPABASE_URL  = 'https://TU_PROYECTO.supabase.co';
+const SUPABASE_ANON = 'TU_ANON_KEY';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -643,6 +643,12 @@ function modFrom(m){if(!m)return '';const ml=m.toLowerCase();if(ml.includes('hí
 function locFromProv(){const m={bsas:'Buenos Aires',caba:'CABA',cba:'Córdoba',sf:'Santa Fe',all:'Argentina'};return m[F.prov]||'Argentina';}
 function sortJobs(){if(F.sort==='nuevo')ALL_JOBS.sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));else ALL_JOBS.sort((a,b)=>b.match-a.match);}
 
+function hasCompleteProfile(){
+  const p=USER?.profile;
+  if(!p)return false;
+  return !!(p.titulo&&p.resumen&&(p.skills||[]).length>0&&(p.exp||[]).length>0);
+}
+
 // ── FILTERS ───────────────────────────────────────────────
 function setFilter(type,val,el){
   const p=el.parentElement;p.querySelectorAll('.fchip').forEach(c=>c.classList.remove('on'));el.classList.add('on');
@@ -687,6 +693,8 @@ function renderJobs(){
   grid.innerHTML=vis.map(jobCard).join('');
   if(needGate){
     lmWrap.innerHTML=`<div class="gate-wrap"><div class="gate-card"><h3>Hay ${filtered.length-PAGE_SIZE} avisos más</h3><p>Registrate gratis para verlos todos, guardar búsquedas y subir tu perfil.</p><button class="btn-full btn-teal" onclick="goPage('auth');switchTab('registro')">Registrarme gratis →</button></div></div>`;
+  } else if(USER&&!hasCompleteProfile()&&filtered.length>0){
+    lmWrap.innerHTML=`<div class="gate-wrap"><div class="gate-card" style="background:linear-gradient(135deg,var(--td),#0a7050)"><h3>Completá tu perfil</h3><p>Con el perfil completo podés postularte a avisos de TalentLab y mejorar tu match con cada aviso.</p><button class="btn-full" style="background:#fff;color:var(--teal)" onclick="goPage('perfil')">Completar mi perfil →</button></div></div>`;
   } else if(USER&&filtered.length>PAGE_SIZE){
     lmWrap.innerHTML=`<div class="gate-wrap"><button class="lm-btn" onclick="loadMore()">Ver ${filtered.length-PAGE_SIZE} avisos más</button></div>`;
   } else {lmWrap.innerHTML='';}
@@ -836,8 +844,20 @@ async function doRegistro(){
       id:data.user.id, email, name,
       skills:'[]',idiomas:'[]',exp:'[]',edu:'[]',certs:'[]',score:0
     });
-    goPage('empleos');
-    toast('¡Cuenta creada! Bienvenido/a '+name.split(' ')[0]+' ✓');
+    if(data.session){
+      // Email confirmation OFF → sesión inmediata
+      USER={id:data.user.id,email,name};
+      const{data:prof}=await sb.from('profiles').select('*').eq('id',data.user.id).single();
+      if(prof) USER.profile=prof;
+      updateNav();
+      goPage('empleos');
+      toast('¡Cuenta creada! Bienvenido/a '+name.split(' ')[0]+' ✓');
+    } else {
+      // Email confirmation ON → avisar
+      const err=document.getElementById('auth-err');
+      err.style.background='var(--tl)';err.style.color='var(--td)';err.style.border='1px solid #a8d8c0';
+      showErr('✅ Revisá tu email para confirmar la cuenta. Luego ingresá con tu email y contraseña.');
+    }
   }
 }
 
