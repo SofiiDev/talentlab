@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TalentLab Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0c1f3d;--navy2:#162b52;
+  --teal:#1b9e74;--tl:#d6f5ea;--td:#064d38;
+  --amber:#c97d00;--al:#fef0c0;
+  --blue:#1653a8;--bl:#dceeff;
+  --coral:#b83232;--cl:#fde0de;
+  --gray:#f0efe9;--g2:#dddbd4;
+  --border:#ccc9bf;--muted:#6b6860;--dark:#1c1b19;--white:#fff;
+  --sh:0 1px 4px rgba(0,0,0,.08),0 2px 12px rgba(0,0,0,.06);
+  --sh2:0 4px 24px rgba(0,0,0,.12);--r:10px;
+}
+html{background:var(--gray)}
+body{font-family:'DM Sans',sans-serif;color:var(--dark);font-size:14px;min-height:100vh}
+h1,h2,h3{font-family:'DM Serif Display',serif}
+button,input,select,textarea{font-family:'DM Sans',sans-serif}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);padding:20px}
+.login-card{background:#fff;border-radius:16px;padding:32px;width:100%;max-width:380px;box-shadow:var(--sh2)}
+.login-logo{font-family:'DM Serif Display',serif;font-size:22px;color:var(--navy);text-align:center;margin-bottom:2px}
+.login-logo em{color:var(--teal);font-style:normal}
+.login-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:22px}
+.fg{display:flex;flex-direction:column;gap:3px;margin-bottom:12px}
+.fg label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.fg input{border:1.5px solid var(--border);border-radius:var(--r);padding:11px 13px;font-size:14px;color:var(--dark);outline:none;transition:border-color .15s;width:100%}
+.fg input:focus{border-color:var(--teal)}
+.btn-full{width:100%;padding:12px;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer;border:none;background:var(--teal);color:#fff;transition:background .15s}
+.btn-full:hover{background:var(--td)}
+.btn-full:disabled{background:var(--g2);cursor:not-allowed}
+.err{background:var(--cl);color:var(--coral);border-radius:var(--r);padding:9px 13px;font-size:12px;margin-bottom:11px;display:none;font-weight:600}
+
+.admin-wrap{display:none;min-height:100vh;flex-direction:column}
+.top-bar{background:var(--navy);height:52px;display:flex;align-items:center;padding:0 24px;gap:10px;position:sticky;top:0;z-index:100}
+.top-logo{font-family:'DM Serif Display',serif;font-size:19px;color:#fff}
+.top-logo em{color:#6ee7be;font-style:normal}
+.top-logo span{font-size:10px;color:rgba(255,255,255,.4);margin-left:6px;font-family:'DM Sans',sans-serif}
+.top-tabs{display:flex;gap:2px;margin-left:auto}
+.ttab{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.6);background:none;border:1.5px solid transparent;transition:all .15s}
+.ttab.on{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.15)}
+.ttab:hover:not(.on){background:rgba(255,255,255,.07);color:rgba(255,255,255,.85)}
+.logout-btn{margin-left:8px;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.6);background:none;border:1.5px solid rgba(255,255,255,.18);transition:all .15s}
+.logout-btn:hover{background:rgba(255,255,255,.08);color:#fff}
+
+.panels{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%}
+.panel{display:none;animation:fi .2s ease}
+.panel.on{display:block}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.stat{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:14px;box-shadow:var(--sh)}
+.stat-val{font-family:'DM Serif Display',serif;font-size:28px;color:var(--dark);line-height:1;margin-bottom:3px}
+.stat-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+
+.card{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:14px;overflow:hidden}
+.card-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1.5px solid var(--g2);flex-wrap:wrap;gap:8px}
+.card-title{font-size:14px;font-weight:700;color:var(--dark)}
+.card-body{padding:16px}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filt{border:1.5px solid var(--border);border-radius:8px;padding:7px 11px;font-size:12px;outline:none;color:var(--dark);background:#fff;transition:border-color .15s}
+.filt:focus{border-color:var(--teal)}
+.filt-btn{padding:7px 16px;background:var(--teal);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s}
+.filt-btn:hover{background:var(--td)}
+.filt-btn.sec{background:var(--navy)}.filt-btn.sec:hover{background:var(--navy2)}
+.filt-btn.out{background:#fff;border:1.5px solid var(--border);color:var(--muted)}.filt-btn.out:hover{border-color:var(--teal);color:var(--teal)}
+
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:9px 12px;text-align:left;border-bottom:2px solid var(--g2);background:var(--gray);white-space:nowrap}
+.tbl td{padding:10px 12px;border-bottom:1px solid #ebebea;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#f8f7f3}
+.tbl tr{cursor:pointer}
+.empty-row td{text-align:center;padding:32px;color:var(--muted);font-style:italic;cursor:default}
+.empty-row td:hover{background:none}
+
+.pill{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.pg{background:var(--tl);color:var(--td)}
+.pa{background:var(--al);color:var(--amber)}
+.pb{background:var(--bl);color:var(--blue)}
+.pr{background:var(--cl);color:var(--coral)}
+.pm{background:var(--gray);color:var(--muted);border:1px solid var(--border)}
+.skill-tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--tl);color:var(--td);margin:1px 2px}
+
+.ov{position:fixed;inset:0;background:rgba(12,31,61,.55);z-index:500;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;backdrop-filter:blur(3px)}
+.ov.open{display:flex;animation:fi .2s}
+.modal{background:#fff;border-radius:14px;max-width:700px;width:100%;margin:auto;box-shadow:var(--sh2);overflow:hidden}
+.modal-head{background:var(--navy);padding:18px 22px;display:flex;justify-content:space-between;align-items:flex-start}
+.modal-close{background:rgba(255,255,255,.12);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:20px 22px;max-height:75vh;overflow-y:auto}
+.mf-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mf-fg{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
+.mf-fg label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.mf-fg input,.mf-fg select,.mf-fg textarea{border:1.5px solid var(--border);border-radius:var(--r);padding:9px 11px;font-size:13px;color:var(--dark);outline:none;width:100%;transition:border-color .15s}
+.mf-fg input:focus,.mf-fg select:focus,.mf-fg textarea:focus{border-color:var(--teal)}
+.mf-fg textarea{resize:vertical;min-height:80px}
+.mf-fg.full{grid-column:1/-1}
+.mf-save{padding:11px 24px;background:var(--teal);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer}
+.mf-save:hover{background:var(--td)}
+
+.prof-header{display:flex;gap:16px;align-items:flex-start;margin-bottom:18px}
+.prof-av{width:56px;height:56px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:18px;font-weight:700;color:#fff;overflow:hidden}
+.prof-av img{width:100%;height:100%;object-fit:cover}
+.prof-section{margin-bottom:16px}
+.prof-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid var(--g2)}
+.prof-item{padding:9px 0;border-bottom:1px solid var(--g2)}
+.prof-item:last-child{border-bottom:none}
+.prof-item-title{font-size:13px;font-weight:700;color:var(--dark)}
+.prof-item-sub{font-size:12px;color:var(--muted);margin-top:1px}
+.prof-item-desc{font-size:12px;color:var(--dark);margin-top:4px;line-height:1.5}
+
+.loading-wrap{padding:40px;text-align:center;color:var(--muted);font-size:13px}
+.spinner{width:32px;height:32px;border:3px solid var(--tl);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px}
+
+.toast{position:fixed;bottom:20px;right:20px;background:var(--navy);color:#fff;padding:10px 16px;border-radius:var(--r);font-size:13px;font-weight:600;z-index:999;opacity:0;transform:translateY(6px);transition:all .22s;pointer-events:none;border-left:4px solid var(--teal);box-shadow:var(--sh2)}
+.toast.show{opacity:1;transform:none}
+
+@media(max-width:900px){.stats-row{grid-template-columns:1fr 1fr}.mf-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.panels{padding:14px}.top-tabs{display:none}}
+</style>
+</head>
+<body>
+
+<div id="login-wrap" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">Talent<em>Lab</em></div>
+    <div class="login-sub">Panel de Administración</div>
+    <div class="err" id="login-err"></div>
+    <div class="fg"><label>Email</label><input type="email" id="adm-email" placeholder="admin@talentlab.ar" autocomplete="email"></div>
+    <div class="fg"><label>Contraseña</label><input type="password" id="adm-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doAdminLogin()"></div>
+    <button class="btn-full" id="btn-login" onclick="doAdminLogin()">Ingresar al panel →</button>
+    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px">Acceso exclusivo para administradores de TalentLab</p>
+  </div>
+</div>
+
+<div id="admin-wrap" class="admin-wrap">
+  <div class="top-bar">
+    <div class="top-logo">Talent<em>Lab</em><span>Admin</span></div>
+    <div class="top-tabs">
+      <button class="ttab on" onclick="showPanel('dashboard',this)">Dashboard</button>
+      <button class="ttab" onclick="showPanel('candidates',this)">Candidatos</button>
+      <button class="ttab" onclick="showPanel('postulations',this)">Postulaciones</button>
+      <button class="ttab" onclick="showPanel('jobs',this)">Avisos</button>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">Salir</button>
+  </div>
+
+  <div class="panels">
+
+    <div class="panel on" id="panel-dashboard">
+      <h2 style="font-size:22px;color:var(--navy);margin-bottom:4px">Dashboard</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:18px" id="dash-updated">Cargando...</p>
+      <div class="stats-row" id="dash-stats">
+        <div class="stat"><div class="stat-val">—</div><div class="stat-lbl">Candidatos</div></div>
+        <div class="stat"><div class="stat-val">—</div><div class="stat-lbl">Score ≥ 50</div></div>
+        <div class="stat"><div class="stat-val">—</div><div class="stat-lbl">Postulaciones</div></div>
+        <div class="stat"><div class="stat-val">—</div><div class="stat-lbl">Avisos activos</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Candidatos recientes</div></div>
+        <div class="card-body" id="dash-recent"><div class="loading-wrap"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-candidates">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <h2 style="font-size:22px;color:var(--navy)">Candidatos <span id="cands-count" style="font-size:14px;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:400"></span></h2>
+        <button class="filt-btn sec" onclick="exportCSV()">↓ Exportar CSV</button>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="filters">
+            <input class="filt" id="f-search" placeholder="🔍 Nombre, email, skill..." style="min-width:200px" oninput="filterCands()">
+            <select class="filt" id="f-area" onchange="filterCands()">
+              <option value="">Todas las áreas</option>
+              <option>Control de Calidad</option><option>Producción</option><option>Regulatorio</option>
+              <option>Validaciones</option><option>I+D</option><option>Logística</option>
+              <option>Seguridad e Higiene</option><option>Ensayos Clínicos</option>
+            </select>
+            <select class="filt" id="f-score" onchange="filterCands()">
+              <option value="">Cualquier score</option>
+              <option value="85">Score ≥ 85</option><option value="70">Score ≥ 70</option><option value="50">Score ≥ 50</option>
+            </select>
+            <select class="filt" id="f-sort" onchange="filterCands()">
+              <option value="score">Mayor score</option>
+              <option value="name">Nombre A–Z</option>
+              <option value="date">Más reciente</option>
+            </select>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Candidato</th><th>Cargo</th><th>Skills</th><th>Score</th><th>Exp.</th><th>Idiomas</th><th>Actualizado</th><th>Acciones</th></tr></thead>
+            <tbody id="cands-tbody"><tr class="empty-row"><td colspan="8">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-postulations">
+      <h2 style="font-size:22px;color:var(--navy);margin-bottom:14px">Postulaciones</h2>
+      <div class="card">
+        <div class="card-head">
+          <div class="filters">
+            <input class="filt" id="f-post-search" placeholder="🔍 Candidato o aviso..." style="min-width:220px" oninput="filterPosts()">
+            <select class="filt" id="f-post-status" onchange="filterPosts()">
+              <option value="">Todos los estados</option>
+              <option>Pendiente</option><option>En revisión</option><option>Entrevista</option><option>Contratado</option><option>Descartado</option>
+            </select>
+            <button class="filt-btn out" onclick="loadPostulations()">↺ Actualizar</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Candidato</th><th>Aviso</th><th>Portal</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="posts-tbody"><tr class="empty-row"><td colspan="6">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-jobs">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <h2 style="font-size:22px;color:var(--navy)">Avisos TalentLab</h2>
+        <button class="filt-btn" onclick="openNewJobModal()">+ Publicar nuevo aviso</button>
+      </div>
+      <div class="card">
+        <div class="card-body" id="jobs-list"><div class="loading-wrap"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="ov" id="ov" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;color:#fff" id="modal-title">Modal</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:2px" id="modal-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// SUPABASE CONFIG — mismas credenciales que index.html
+// ══════════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://TU_PROYECTO.supabase.co';
+const SUPABASE_ANON = 'TU_ANON_KEY';
+// Para el admin necesitás la SERVICE ROLE KEY (lee todos los perfiles)
+// Supabase → Settings → API → service_role key
+// ⚠️  NUNCA expongas esta key en el portal público (index.html)
+const SUPABASE_SERVICE = 'TU_SERVICE_ROLE_KEY';
+
+const sb      = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const sbAdmin = supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE);
+
+let ALL_CANDS=[], ALL_POSTS=[], ALL_JOBS=[];
+
+// ── LOGIN ──────────────────────────────────────────────────
+async function doAdminLogin(){
+  const email=document.getElementById('adm-email').value.trim();
+  const pass=document.getElementById('adm-pass').value;
+  const errEl=document.getElementById('login-err');
+  errEl.style.display='none';
+  if(!email||!pass){errEl.textContent='Ingresá email y contraseña';errEl.style.display='block';return;}
+  const btn=document.getElementById('btn-login');
+  btn.textContent='Ingresando...';btn.disabled=true;
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  btn.textContent='Ingresar al panel →';btn.disabled=false;
+  if(error){errEl.textContent='Credenciales inválidas';errEl.style.display='block';return;}
+  // Verify admin role (email must match)
+  const {data:profile}=await sbAdmin.from('profiles').select('email').eq('id',data.user.id).single();
+  document.getElementById('login-wrap').style.display='none';
+  document.getElementById('admin-wrap').style.display='flex';
+  loadDashboard();
+}
+
+function doLogout(){
+  sb.auth.signOut();
+  document.getElementById('admin-wrap').style.display='none';
+  document.getElementById('login-wrap').style.display='flex';
+}
+
+// ── PANELS ─────────────────────────────────────────────────
+function showPanel(name,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.ttab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('panel-'+name).classList.add('on');
+  if(el)el.classList.add('on');
+  if(name==='candidates')   loadCandidates();
+  if(name==='postulations') loadPostulations();
+  if(name==='jobs')         loadJobs();
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────
+async function loadDashboard(){
+  document.getElementById('dash-updated').textContent='Actualizado: '+new Date().toLocaleString('es-AR');
+  const [cr,pr,jr]=await Promise.all([
+    sbAdmin.from('profiles').select('*').order('updated_at',{ascending:false}),
+    sbAdmin.from('applications').select('*').order('created_at',{ascending:false}),
+    sbAdmin.from('jobs').select('*').eq('status','activo'),
+  ]);
+  ALL_CANDS=(cr.data||[]).map(parseProfile);
+  ALL_POSTS=pr.data||[];
+  ALL_JOBS=jr.data||[];
+
+  const complete=ALL_CANDS.filter(c=>parseInt(c.score||0)>=50).length;
+  document.getElementById('dash-stats').innerHTML=[
+    [ALL_CANDS.length,'Candidatos','var(--teal)'],
+    [complete,'Score ≥ 50','var(--blue)'],
+    [ALL_POSTS.length,'Postulaciones','var(--amber)'],
+    [ALL_JOBS.length,'Avisos activos','var(--coral)'],
+  ].map(([v,l,c])=>`<div class="stat"><div class="stat-val" style="color:${c}">${v}</div><div class="stat-lbl">${l}</div></div>`).join('');
+
+  const recent=ALL_CANDS.slice(0,8);
+  document.getElementById('dash-recent').innerHTML=recent.length
+    ?`<table class="tbl"><thead><tr><th>Candidato</th><th>Cargo</th><th>Score</th><th>Skills</th></tr></thead><tbody>
+        ${recent.map(c=>`<tr onclick="openCandDetail(${escJson(c)})">
+          <td><strong>${c.name}</strong><div style="font-size:11px;color:var(--muted)">${c.email}</div></td>
+          <td>${c.titulo||'—'}</td>
+          <td>${scoreBadge(parseInt(c.score||0))}</td>
+          <td>${(c.skills||[]).slice(0,3).map(s=>`<span class="skill-tag">${s.name}</span>`).join('')}</td>
+        </tr>`).join('')}
+      </tbody></table>`
+    :'<div style="padding:20px;text-align:center;color:var(--muted)">Sin candidatos registrados aún</div>';
+}
+
+function parseProfile(p){
+  ['skills','idiomas','exp','edu','certs'].forEach(f=>{
+    if(typeof p[f]==='string'){try{p[f]=JSON.parse(p[f]);}catch{p[f]=[];}}
+    if(!Array.isArray(p[f]))p[f]=[];
+  });
+  return p;
+}
+
+// ── CANDIDATES ─────────────────────────────────────────────
+async function loadCandidates(){
+  if(ALL_CANDS.length){renderCands();document.getElementById('cands-count').textContent=`(${ALL_CANDS.length})`;return;}
+  document.getElementById('cands-tbody').innerHTML='<tr class="empty-row"><td colspan="8"><div class="spinner" style="margin:0 auto 8px"></div>Cargando...</td></tr>';
+  const{data}=await sbAdmin.from('profiles').select('*').order('score',{ascending:false});
+  ALL_CANDS=(data||[]).map(parseProfile);
+  document.getElementById('cands-count').textContent=`(${ALL_CANDS.length})`;
+  renderCands();
+}
+
+function filterCands(){
+  const q=document.getElementById('f-search').value.toLowerCase();
+  const area=document.getElementById('f-area').value.toLowerCase();
+  const minSc=parseInt(document.getElementById('f-score').value)||0;
+  const sort=document.getElementById('f-sort').value;
+  let data=ALL_CANDS.filter(c=>{
+    if(q&&!c.name.toLowerCase().includes(q)&&!c.email.toLowerCase().includes(q)&&
+       !(c.titulo||'').toLowerCase().includes(q)&&
+       !(c.skills||[]).some(s=>s.name.toLowerCase().includes(q)))return false;
+    if(area&&!(c.titulo||'').toLowerCase().includes(area)&&
+       !(c.skills||[]).some(s=>s.name.toLowerCase().includes(area)))return false;
+    if(minSc&&parseInt(c.score||0)<minSc)return false;
+    return true;
+  });
+  if(sort==='score')data.sort((a,b)=>parseInt(b.score||0)-parseInt(a.score||0));
+  else if(sort==='name')data.sort((a,b)=>a.name.localeCompare(b.name));
+  else data.sort((a,b)=>new Date(b.updated_at||0)-new Date(a.updated_at||0));
+  renderCands(data);
+}
+
+function renderCands(data){
+  const tbody=document.getElementById('cands-tbody');
+  const list=data||ALL_CANDS;
+  if(!list.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">Sin candidatos con esos filtros</td></tr>';return;}
+  tbody.innerHTML=list.map(c=>{
+    const sc=parseInt(c.score||0);
+    return`<tr onclick="openCandDetail(${escJson(c)})">
+      <td><div style="display:flex;align-items:center;gap:8px">
+        ${c.foto_url?`<img src="${c.foto_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<div style="width:32px;height:32px;border-radius:50%;background:${colorFor(c.email)};color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${initials(c.name)}</div>`}
+        <div><div style="font-weight:700">${c.name}</div><div style="font-size:11px;color:var(--muted)">${c.email}</div></div>
+      </div></td>
+      <td>${c.titulo||'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="max-width:200px">${(c.skills||[]).slice(0,4).map(s=>`<span class="skill-tag">${s.name}</span>`).join('')}${(c.skills||[]).length>4?`<span style="font-size:10px;color:var(--muted)"> +${(c.skills||[]).length-4}</span>`:''}</td>
+      <td>${scoreBadge(sc)}</td>
+      <td>${(c.exp||[]).length>0?`${(c.exp||[]).length} pos.`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${(c.idiomas||[]).map(i=>`<span class="pill pb">${i.name}</span>`).join(' ')||'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="font-size:11px;color:var(--muted)">${fmtDate(c.updated_at)}</td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+        <button class="filt-btn" style="padding:4px 10px;font-size:11px" onclick="openCandDetail(${escJson(c)})">Ver</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openCandDetail(c){
+  if(typeof c==='string')c=JSON.parse(c);
+  const sc=parseInt(c.score||0);
+  const lbl=sc>=85?{txt:'Perfil destacado',cls:'pg'}:sc>=70?{txt:'Perfil completo',cls:'pb'}:sc>=50?{txt:'En desarrollo',cls:'pa'}:{txt:'Incompleto',cls:'pr'};
+  document.getElementById('modal-title').textContent=c.name;
+  document.getElementById('modal-sub').textContent=c.titulo||c.email;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="prof-header">
+      ${c.foto_url?`<div class="prof-av"><img src="${c.foto_url}"></div>`:`<div class="prof-av" style="background:${colorFor(c.email)}">${initials(c.name)}</div>`}
+      <div style="flex:1">
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--dark);margin-bottom:2px">${c.name}</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px">${c.titulo||''}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${scoreBadge(sc)}
+          <span class="pill ${lbl.cls}">${lbl.txt}</span>
+          ${c.ubicacion?`<span class="pill pm">📍 ${c.ubicacion}</span>`:''}
+          ${c.tel?`<span class="pill pm">📱 ${c.tel}</span>`:''}
+        </div>
+      </div>
+    </div>
+    ${c.resumen?`<div class="prof-section"><div class="prof-section-title">Resumen</div><div style="font-size:13px;color:var(--muted);line-height:1.65">${c.resumen}</div></div>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="prof-section">
+        <div class="prof-section-title">Skills (${(c.skills||[]).length})</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${(c.skills||[]).map(s=>`<span class="skill-tag">${s.name} <span style="opacity:.7">${s.nivel}</span></span>`).join('')||'<span style="color:var(--muted);font-size:12px">Sin skills</span>'}
+        </div>
+      </div>
+      <div class="prof-section">
+        <div class="prof-section-title">Idiomas</div>
+        ${(c.idiomas||[]).map(i=>`<div class="pill pb" style="margin:2px">${i.name} · ${i.nivel}</div>`).join('')||'<span style="color:var(--muted);font-size:12px">—</span>'}
+      </div>
+    </div>
+    ${(c.exp||[]).length?`<div class="prof-section"><div class="prof-section-title">Experiencia</div>${(c.exp||[]).map(e=>`<div class="prof-item"><div class="prof-item-title">${e.cargo}</div><div class="prof-item-sub">${e.empresa} · ${e.desde}${e.hasta?'–'+e.hasta:' → Presente'}</div>${e.logros?`<div class="prof-item-desc">${e.logros}</div>`:''}</div>`).join('')}</div>`:''}
+    ${(c.edu||[]).length?`<div class="prof-section"><div class="prof-section-title">Formación</div>${(c.edu||[]).map(e=>`<div class="prof-item"><div class="prof-item-title">${e.titulo}</div><div class="prof-item-sub">${e.inst} · ${e.desde}${e.hasta?'–'+e.hasta:' → En curso'}</div></div>`).join('')}</div>`:''}
+    ${(c.certs||[]).length?`<div class="prof-section"><div class="prof-section-title">Certificaciones</div>${(c.certs||[]).map(ct=>`<div class="prof-item"><div class="prof-item-title">${ct.nombre}</div><div class="prof-item-sub">${ct.inst||''}${ct.anio?' · '+ct.anio:''}</div></div>`).join('')}</div>`:''}
+    <div style="display:flex;gap:8px;padding-top:10px;border-top:1.5px solid var(--g2);flex-wrap:wrap">
+      ${c.linkedin?`<a href="https://${c.linkedin.replace(/^https?:\/\//,'')}" target="_blank" style="text-decoration:none"><button class="filt-btn sec" style="font-size:12px">LinkedIn ↗</button></a>`:''}
+      <button class="filt-btn" style="font-size:12px" onclick="navigator.clipboard?.writeText('${c.email}');toast('Email copiado ✓')">Copiar email</button>
+      ${c.tel?`<a href="https://wa.me/${c.tel.replace(/\D/g,'')}" target="_blank" style="text-decoration:none"><button class="filt-btn" style="font-size:12px;background:#25d366">WhatsApp ↗</button></a>`:''}
+    </div>`;
+  openModal();
+}
+
+// ── POSTULATIONS ───────────────────────────────────────────
+async function loadPostulations(){
+  document.getElementById('posts-tbody').innerHTML='<tr class="empty-row"><td colspan="6"><div class="spinner" style="margin:0 auto"></div></td></tr>';
+  const{data}=await sbAdmin.from('applications').select('*').order('created_at',{ascending:false});
+  ALL_POSTS=data||[];
+  renderPosts();
+}
+
+function filterPosts(){
+  const q=document.getElementById('f-post-search').value.toLowerCase();
+  const st=document.getElementById('f-post-status').value;
+  let data=ALL_POSTS.filter(p=>{
+    if(q&&!(p.candidate_name||'').toLowerCase().includes(q)&&!(p.job_title||'').toLowerCase().includes(q))return false;
+    if(st&&p.status!==st)return false;
+    return true;
+  });
+  renderPosts(data);
+}
+
+function renderPosts(data){
+  const tbody=document.getElementById('posts-tbody');
+  const list=data||ALL_POSTS;
+  if(!list.length){tbody.innerHTML='<tr class="empty-row"><td colspan="6">Sin postulaciones</td></tr>';return;}
+  tbody.innerHTML=list.map(p=>`<tr>
+    <td><div style="font-weight:700">${p.candidate_name||p.candidate_email}</div><div style="font-size:11px;color:var(--muted)">${p.candidate_email}</div></td>
+    <td><div style="font-weight:600">${p.job_title||'—'}</div>${p.job_url?`<a href="${p.job_url}" target="_blank" style="font-size:11px;color:var(--teal)">Ver ↗</a>`:''}</td>
+    <td><span class="pill pm">${p.job_src||'TalentLab'}</span></td>
+    <td style="font-size:11px;color:var(--muted)">${fmtDate(p.created_at)}</td>
+    <td><select style="border:1.5px solid var(--border);border-radius:6px;padding:3px 7px;font-size:11px;outline:none;cursor:pointer" onchange="updatePostStatus('${p.id}',this.value)">
+      ${['Pendiente','En revisión','Entrevista','Contratado','Descartado'].map(s=>`<option ${p.status===s?'selected':''}>${s}</option>`).join('')}
+    </select></td>
+    <td><button class="filt-btn out" style="font-size:11px;padding:3px 9px" onclick="openCandByEmail('${p.candidate_email}')">Ver perfil</button></td>
+  </tr>`).join('');
+}
+
+async function updatePostStatus(id,status){
+  await sbAdmin.from('applications').update({status}).eq('id',id);
+  const idx=ALL_POSTS.findIndex(p=>p.id===id);
+  if(idx>-1)ALL_POSTS[idx].status=status;
+  toast('Estado: '+status+' ✓');
+}
+
+function openCandByEmail(email){
+  const c=ALL_CANDS.find(x=>x.email===email);
+  if(c)openCandDetail(c);
+  else toast('Cargá la lista de candidatos primero');
+}
+
+// ── JOBS ────────────────────────────────────────────────────
+async function loadJobs(){
+  document.getElementById('jobs-list').innerHTML='<div class="loading-wrap"><div class="spinner"></div></div>';
+  const{data}=await sbAdmin.from('jobs').select('*').order('created_at',{ascending:false});
+  ALL_JOBS=data||[];
+  renderJobs();
+}
+
+function renderJobs(){
+  const el=document.getElementById('jobs-list');
+  if(!ALL_JOBS.length){
+    el.innerHTML=`<div style="padding:32px;text-align:center">
+      <div style="font-size:24px;margin-bottom:10px">📝</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">No hay avisos publicados</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Publicá el primer aviso y aparecerá en el portal</div>
+      <button class="filt-btn" onclick="openNewJobModal()">+ Publicar primer aviso</button>
+    </div>`;return;
+  }
+  el.innerHTML=`<table class="tbl"><thead><tr><th>Aviso</th><th>Área</th><th>Empresa</th><th>Ubicación</th><th>Modalidad</th><th>Postulantes</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+    ${ALL_JOBS.map(j=>`<tr>
+      <td><div style="font-weight:700">${j.titulo}</div>${j.salario?`<div style="font-size:11px;color:var(--teal)">${j.salario}</div>`:''}</td>
+      <td><span class="pill pm">${j.area||'—'}</span></td>
+      <td>${j.empresa||'TalentLab'}</td>
+      <td style="font-size:12px">${j.ubicacion||'Argentina'}</td>
+      <td><span class="pill pm">${j.modalidad||'—'}</span></td>
+      <td><strong>${j.postulations||0}</strong></td>
+      <td><span class="pill ${j.status==='activo'?'pg':'pm'}">${j.status}</span></td>
+      <td style="white-space:nowrap">
+        <button class="filt-btn out" style="padding:4px 10px;font-size:11px" onclick="toggleJobStatus('${j.id}','${j.status==='activo'?'pausado':'activo'}')">${j.status==='activo'?'Pausar':'Activar'}</button>
+      </td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function openNewJobModal(){
+  document.getElementById('modal-title').textContent='Publicar nuevo aviso';
+  document.getElementById('modal-sub').textContent='El aviso aparecerá en el portal de candidatos';
+  document.getElementById('modal-body').innerHTML=`
+    <div class="mf-grid">
+      <div class="mf-fg full"><label>Título del puesto *</label><input id="j-titulo" placeholder="Ej: Analista de Control de Calidad Sr."></div>
+      <div class="mf-fg"><label>Área *</label><select id="j-area"><option>Control de Calidad</option><option>Producción</option><option>Regulatorio</option><option>Validaciones</option><option>I+D</option><option>Logística</option><option>Seguridad e Higiene</option><option>Ensayos Clínicos</option><option>Tecnología</option></select></div>
+      <div class="mf-fg"><label>Empresa</label><input id="j-empresa" value="TalentLab"></div>
+      <div class="mf-fg"><label>Ubicación</label><input id="j-ubicacion" value="Buenos Aires, GBA"></div>
+      <div class="mf-fg"><label>Modalidad</label><select id="j-modalidad"><option>Presencial</option><option>Híbrido</option><option>Remoto</option></select></div>
+      <div class="mf-fg"><label>Salario (opcional)</label><input id="j-salario" placeholder="Ej: $1.2M – $1.6M bruto/mes"></div>
+      <div class="mf-fg full"><label>Descripción del puesto *</label><textarea id="j-desc" style="min-height:120px" placeholder="Responsabilidades, perfil buscado, beneficios..."></textarea></div>
+      <div class="mf-fg full"><label>Requisitos clave</label><textarea id="j-req" placeholder="GMP, HPLC, 3+ años de experiencia..."></textarea></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:8px;border-top:1.5px solid var(--g2)">
+      <button class="filt-btn out" onclick="closeModal()">Cancelar</button>
+      <button class="mf-save" onclick="publishJob()">Publicar aviso →</button>
+    </div>`;
+  openModal();
+}
+
+async function publishJob(){
+  const titulo=document.getElementById('j-titulo')?.value?.trim();
+  const desc=document.getElementById('j-desc')?.value?.trim();
+  if(!titulo||!desc){toast('Completá título y descripción ⚠');return;}
+  const btn=document.querySelector('.mf-save');if(btn){btn.textContent='Publicando...';btn.disabled=true;}
+  const{data,error}=await sbAdmin.from('jobs').insert({
+    titulo, area:document.getElementById('j-area').value,
+    empresa:document.getElementById('j-empresa').value,
+    ubicacion:document.getElementById('j-ubicacion').value,
+    modalidad:document.getElementById('j-modalidad').value,
+    salario:document.getElementById('j-salario').value||null,
+    descripcion:desc,
+    requisitos:document.getElementById('j-req').value||null,
+    status:'activo', postulations:0
+  }).select().single();
+  if(btn){btn.textContent='Publicar aviso →';btn.disabled=false;}
+  if(error){toast('Error: '+error.message);return;}
+  closeModal();ALL_JOBS=[];loadJobs();
+  toast('Aviso publicado ✓ · ID: '+data.id);
+}
+
+async function toggleJobStatus(id,newStatus){
+  await sbAdmin.from('jobs').update({status:newStatus}).eq('id',id);
+  const idx=ALL_JOBS.findIndex(j=>j.id===id);
+  if(idx>-1)ALL_JOBS[idx].status=newStatus;
+  renderJobs();toast('Estado actualizado: '+newStatus+' ✓');
+}
+
+// ── EXPORT CSV ─────────────────────────────────────────────
+function exportCSV(){
+  if(!ALL_CANDS.length){toast('Cargá la lista de candidatos primero');return;}
+  const headers=['Email','Nombre','Cargo','Ubicación','Score','Skills','Idiomas','Experiencia','Formación','Certificaciones','LinkedIn','Tel'];
+  const rows=ALL_CANDS.map(c=>[
+    c.email,c.name,c.titulo||'',c.ubicacion||'',c.score||0,
+    (c.skills||[]).map(s=>s.name+'('+s.nivel+')').join('; '),
+    (c.idiomas||[]).map(i=>i.name+' '+i.nivel).join('; '),
+    (c.exp||[]).map(e=>e.cargo+' @ '+e.empresa).join('; '),
+    (c.edu||[]).map(e=>e.titulo+' - '+e.inst).join('; '),
+    (c.certs||[]).map(ct=>ct.nombre).join('; '),
+    c.linkedin||'',c.tel||''
+  ].map(v=>'"'+String(v).replace(/"/g,'""')+'"'));
+  const csv=[headers.map(h=>'"'+h+'"').join(','),...rows.map(r=>r.join(','))].join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='talentlab-candidatos-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();URL.revokeObjectURL(url);
+  toast('CSV exportado ✓ ('+ALL_CANDS.length+' candidatos)');
+}
+
+// ── UTILS ───────────────────────────────────────────────────
+function openModal(){document.getElementById('ov').classList.add('open');document.body.style.overflow='hidden';}
+function closeModal(){document.getElementById('ov').classList.remove('open');document.body.style.overflow='';}
+function initials(n){return(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+function colorFor(email){const cols=['#1b9e74','#1653a8','#4a3fa0','#b83232','#c97d00','#064d38','#0c1f3d'];let h=0;for(const c of(email||''))h=(h*31+c.charCodeAt(0))%cols.length;return cols[h];}
+function fmtDate(d){if(!d)return'—';try{return new Date(d).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});}catch{return d;}}
+function escJson(obj){return JSON.stringify(obj).replace(/\\/g,'\\\\').replace(/"/g,'\\"');}
+function scoreBadge(sc){const col=sc>=85?'var(--teal)':sc>=70?'var(--blue)':sc>=50?'var(--amber)':'var(--coral)';const bg=sc>=85?'var(--tl)':sc>=70?'var(--bl)':sc>=50?'var(--al)':'var(--cl)';return`<span style="background:${bg};color:${col};font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;border:1.5px solid ${col}40">${sc}/100</span>`;}
+let _tt;
+function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>e.classList.remove('show'),3200);}
+</script>
+</body>
+</html>

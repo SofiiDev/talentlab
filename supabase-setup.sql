@@ -1,0 +1,92 @@
+-- ═══════════════════════════════════════════════════
+-- TalentLab — Supabase Setup
+-- Ejecutar en: Supabase → SQL Editor → New query
+-- ═══════════════════════════════════════════════════
+
+-- 1. TABLA DE PERFILES
+create table if not exists profiles (
+  id uuid references auth.users on delete cascade primary key,
+  email text unique not null,
+  name text not null,
+  titulo text,
+  resumen text,
+  tel text,
+  linkedin text,
+  ubicacion text,
+  skills jsonb default '[]',
+  idiomas jsonb default '[]',
+  exp jsonb default '[]',
+  edu jsonb default '[]',
+  certs jsonb default '[]',
+  score integer default 0,
+  foto_url text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- 2. TABLA DE AVISOS
+create table if not exists jobs (
+  id text primary key default 'TL-' || extract(epoch from now())::bigint,
+  titulo text not null,
+  area text,
+  empresa text default 'TalentLab',
+  ubicacion text,
+  modalidad text,
+  salario text,
+  descripcion text,
+  requisitos text,
+  status text default 'activo',
+  postulations integer default 0,
+  created_at timestamptz default now()
+);
+
+-- 3. TABLA DE POSTULACIONES
+create table if not exists applications (
+  id text primary key default 'APP-' || extract(epoch from now())::bigint,
+  candidate_id uuid references profiles(id) on delete cascade,
+  candidate_email text,
+  candidate_name text,
+  job_id text,
+  job_title text,
+  job_src text,
+  job_url text,
+  status text default 'Pendiente',
+  created_at timestamptz default now()
+);
+
+-- 4. ROW LEVEL SECURITY
+alter table profiles enable row level security;
+alter table jobs enable row level security;
+alter table applications enable row level security;
+
+-- Profiles: cada usuario ve y edita solo el suyo
+create policy "Perfil propio" on profiles
+  for all using (auth.uid() = id);
+
+-- Jobs: todos pueden leer, solo admins crean/editan (manejado desde el cliente con service key)
+create policy "Jobs publicos" on jobs
+  for select using (true);
+
+-- Applications: candidato ve las suyas
+create policy "Apps propias" on applications
+  for all using (auth.uid() = candidate_id);
+
+-- 5. TRIGGER para updated_at
+create or replace function update_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger profiles_updated_at
+  before update on profiles
+  for each row execute function update_updated_at();
+
+-- 6. Vista para admin (lee todos los perfiles)
+-- Usada desde el panel admin con service_role key
+create or replace view admin_profiles as
+  select * from profiles;
+
+-- ¡Listo! Ahora configurá las variables en index.html y admin.html
