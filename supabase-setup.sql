@@ -126,4 +126,7 @@ create policy "Actualizar avatar propio" on storage.objects
     and auth.uid()::text = split_part(storage.filename(name), '.', 1)
   );
 
+-- MIGRACIÓN: agregar columna url si no existe (ejecutar si la tabla ya fue creada sin ella)
+alter table jobs add column if not exists url text;
+
 -- ¡Listo! Ahora configurá las variables en index.html y admin.html
