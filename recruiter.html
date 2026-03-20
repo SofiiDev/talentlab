@@ -781,7 +781,7 @@ async function loadDashboard() {
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
           <span class="pill pm">${j.postulations || 0} postul.</span>
-          <button class="filt-btn out" style="padding:4px 10px;font-size:11px" onclick="openJobModal(${escJson(j)})">Editar</button>
+          <button class="filt-btn out" style="padding:4px 10px;font-size:11px" onclick="editJobById('${j.id}')">Editar</button>
         </div>
       </div>`).join('');
   }
@@ -865,6 +865,18 @@ function openJobById(id) {
   const job = ALL_JOBS.find(j => j.id === id);
   if (job) openJobView(job);
   else toast('Aviso no disponible');
+}
+
+function editJobById(id) {
+  const job = ALL_JOBS.find(j => j.id === id);
+  if (job) openJobModal(job);
+  else toast('Aviso no disponible');
+}
+
+function editInterviewById(id) {
+  const i = ALL_INTERVIEWS.find(x => x.id === id);
+  if (i) editInterview(i);
+  else toast('Entrevista no encontrada');
 }
 
 function openJobModal(job) {
@@ -1193,13 +1205,21 @@ function filterCands() {
 function renderCands(data) {
   const tbody = document.getElementById('cands-tbody');
   const list  = data || ALL_CANDS;
-  if (!list.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Sin candidatos con esos filtros</td></tr>'; return; }
+  if (!list.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">
+      <div style="padding:24px;text-align:center">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Sin candidatos. Podés cargar perfiles de demo para probar el panel.</div>
+        <button class="filt-btn" onclick="loadDemoProfiles()">Cargar 5 perfiles de demo</button>
+      </div>
+    </td></tr>`;
+    return;
+  }
   tbody.innerHTML = list.map(c => {
     const sc = parseInt(c.score || 0);
     const sel = COMPARE_SET.has(c.email);
-    return `<tr onclick="openCandDetail(${escJson(c)})">
+    return `<tr onclick="openCandByEmail('${c.email}')">
       <td onclick="event.stopPropagation()">
-        <input type="checkbox" class="cmp-check" ${sel ? 'checked' : ''} onchange="toggleCompare(${escJson(c)},this.checked)" title="Seleccionar para comparar">
+        <input type="checkbox" class="cmp-check" ${sel ? 'checked' : ''} onchange="toggleCompareByEmail('${c.email}',this.checked)" title="Seleccionar para comparar">
       </td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
@@ -1219,7 +1239,7 @@ function renderCands(data) {
       <td>${(c.idiomas || []).map(i => `<span class="pill pb">${i.name}</span>`).join(' ') || '<span style="color:var(--muted)">—</span>'}</td>
       <td onclick="event.stopPropagation()">
         <div style="display:flex;gap:4px">
-          <button class="filt-btn" style="padding:4px 10px;font-size:11px" onclick="openCandDetail(${escJson(c)})">Ver</button>
+          <button class="filt-btn" style="padding:4px 10px;font-size:11px" onclick="openCandByEmail('${c.email}')">Ver</button>
           <button class="filt-btn out" style="padding:4px 10px;font-size:11px" onclick="openScheduleModal('${c.email}','${escHtml(c.name)}')">📅</button>
         </div>
       </td>
@@ -1358,8 +1378,35 @@ let _tt;
 function toast(m) { const e = document.getElementById('toast'); e.textContent = m; e.classList.add('show'); clearTimeout(_tt); _tt = setTimeout(() => e.classList.remove('show'), 3200); }
 
 // ══════════════════════════════════════════════════════════
+// DEMO PROFILES (para probar el panel sin candidatos reales)
+// ══════════════════════════════════════════════════════════
+const DEMO_PROFILES = [
+  { id:'demo-001', email:'maria.garcia@demo.com', name:'María García', titulo:'Analista de Control de Calidad Sr.', resumen:'Profesional con 8 años de experiencia en control de calidad farmacéutico. Especializada en HPLC, microbiología y validación de métodos analíticos.', tel:'+54 9 11 4567-8901', ubicacion:'Buenos Aires, CABA', score:92, skills:[{name:'HPLC',nivel:'Avanzado'},{name:'GMP',nivel:'Avanzado'},{name:'Microbiología',nivel:'Avanzado'},{name:'Validación',nivel:'Avanzado'},{name:'ISO 9001',nivel:'Intermedio'}], idiomas:[{name:'Inglés',nivel:'Avanzado'},{name:'Portugués',nivel:'Básico'}], exp:[{cargo:'Analista CQ Sr.',empresa:'Laboratorio Roemmers',desde:'2018',hasta:'',logros:'Lideré la validación de 12 métodos analíticos para nuevos productos.'},{cargo:'Analista CQ',empresa:'ELEA Phoenix',desde:'2015',hasta:'2018',logros:'Control de materias primas y productos terminados.'}], edu:[{titulo:'Lic. en Química',inst:'UBA',desde:'2010',hasta:'2015'}], certs:[{nombre:'Auditor Interno ISO 9001',inst:'Bureau Veritas',anio:'2020'}], updated_at:new Date().toISOString() },
+  { id:'demo-002', email:'carlos.mendoza@demo.com', name:'Carlos Mendoza', titulo:'Jefe de Producción Farmacéutica', resumen:'Ingeniero industrial con 12 años liderando áreas de producción en plantas farmacéuticas. Experto en optimización de procesos y gestión de equipos.', tel:'+54 9 11 5678-9012', ubicacion:'GBA Norte', score:88, skills:[{name:'GMP',nivel:'Avanzado'},{name:'Lean Manufacturing',nivel:'Avanzado'},{name:'SAP',nivel:'Intermedio'},{name:'Gestión de equipos',nivel:'Avanzado'},{name:'BPF',nivel:'Avanzado'}], idiomas:[{name:'Inglés',nivel:'Intermedio'}], exp:[{cargo:'Jefe de Producción',empresa:'Bayer Argentina',desde:'2016',hasta:'',logros:'Reducción del 18% en tiempos de ciclo mediante lean manufacturing.'},{cargo:'Supervisor de Producción',empresa:'Abbott Laboratories',desde:'2011',hasta:'2016',logros:'Coordiné líneas de producción de sólidos orales.'}], edu:[{titulo:'Ing. Industrial',inst:'UTN',desde:'2005',hasta:'2011'}], certs:[{nombre:'Lean Six Sigma Green Belt',inst:'ASQ',anio:'2019'}], updated_at:new Date().toISOString() },
+  { id:'demo-003', email:'laura.fernandez@demo.com', name:'Laura Fernández', titulo:'Especialista en Asuntos Regulatorios', resumen:'Farmacéutica con 6 años de experiencia en registro de medicamentos ante ANMAT. Experta en dossiers CTD y gestión de variaciones de registro.', tel:'+54 9 11 6789-0123', ubicacion:'Buenos Aires, CABA', score:85, skills:[{name:'ANMAT',nivel:'Avanzado'},{name:'CTD/eCTD',nivel:'Avanzado'},{name:'ICH Guidelines',nivel:'Intermedio'},{name:'Registro de medicamentos',nivel:'Avanzado'},{name:'Farmacovigilancia',nivel:'Intermedio'}], idiomas:[{name:'Inglés',nivel:'Avanzado'},{name:'Francés',nivel:'Básico'}], exp:[{cargo:'Especialista Regulatoria',empresa:'Laboratorio Chile Argentina',desde:'2019',hasta:'',logros:'Obtención de 15 nuevos registros ante ANMAT.'},{cargo:'Analista Regulatoria',empresa:'Raffo',desde:'2017',hasta:'2019',logros:'Gestión de variaciones y renovaciones de registros.'}], edu:[{titulo:'Farmacéutica',inst:'UBA',desde:'2011',hasta:'2017'}], certs:[{nombre:'Regulatory Affairs Certification',inst:'RAPS',anio:'2021'}], updated_at:new Date().toISOString() },
+  { id:'demo-004', email:'javier.rodriguez@demo.com', name:'Javier Rodríguez', titulo:'Analista de I+D Formulación', resumen:'Bioquímico con 4 años en desarrollo de formulaciones orales sólidas y semisólidas. Manejo de software de diseño de experimentos y estudios de estabilidad.', tel:'+54 9 11 7890-1234', ubicacion:'Córdoba Capital', score:78, skills:[{name:'Formulación',nivel:'Avanzado'},{name:'Diseño DoE',nivel:'Intermedio'},{name:'HPLC',nivel:'Intermedio'},{name:'Estudios de estabilidad',nivel:'Avanzado'},{name:'Estadística',nivel:'Intermedio'}], idiomas:[{name:'Inglés',nivel:'Intermedio'}], exp:[{cargo:'Analista I+D',empresa:'Industria Química y Farmacéutica IQFA',desde:'2020',hasta:'',logros:'Desarrollo de 3 nuevas formulaciones de comprimidos de liberación controlada.'},{cargo:'Pasante I+D',empresa:'Laboratorio Bernabó',desde:'2019',hasta:'2020',logros:'Soporte en pruebas de preformulación.'}], edu:[{titulo:'Bioquímico',inst:'UNC',desde:'2013',hasta:'2019'}], certs:[], updated_at:new Date().toISOString() },
+  { id:'demo-005', email:'ana.gutierrez@demo.com', name:'Ana Gutiérrez', titulo:'Coordinadora de Validaciones', resumen:'Ingeniera química con 9 años en calificación de equipos y validación de procesos farmacéuticos. Experiencia en redacción de protocolos FDA/EMA.', tel:'+54 9 11 8901-2345', ubicacion:'GBA Sur', score:90, skills:[{name:'Validación de procesos',nivel:'Avanzado'},{name:'Calificación IQ/OQ/PQ',nivel:'Avanzado'},{name:'GMP',nivel:'Avanzado'},{name:'FDA 21 CFR',nivel:'Intermedio'},{name:'EMA Guidelines',nivel:'Intermedio'}], idiomas:[{name:'Inglés',nivel:'Avanzado'}], exp:[{cargo:'Coordinadora Validaciones',empresa:'Laboratorio Liomont Argentina',desde:'2017',hasta:'',logros:'Lideré 8 procesos de validación para líneas inyectables.'},{cargo:'Analista Validaciones',empresa:'Pfizer Argentina',desde:'2014',hasta:'2017',logros:'Redacción y ejecución de protocolos de validación de limpieza.'}], edu:[{titulo:'Ing. Química',inst:'UBA',desde:'2008',hasta:'2014'}], certs:[{nombre:'GMP Lead Auditor',inst:'SGS',anio:'2022'}], updated_at:new Date().toISOString() },
+];
+
+function loadDemoProfiles() {
+  const parsed = DEMO_PROFILES.map(parseProfile);
+  parsed.forEach(p => {
+    if (!ALL_CANDS.find(c => c.email === p.email)) ALL_CANDS.push(p);
+    CAND_MAP[p.email] = p;
+  });
+  document.getElementById('cands-count').textContent = `(${ALL_CANDS.length})`;
+  renderCands();
+  toast('5 perfiles de demo cargados ✓');
+}
+
+// ══════════════════════════════════════════════════════════
 // COMPARAR PERFILES
 // ══════════════════════════════════════════════════════════
+
+function toggleCompareByEmail(email, checked) {
+  const c = ALL_CANDS.find(x => x.email === email) || CAND_MAP[email];
+  if (c) toggleCompare(c, checked);
+}
 
 function toggleCompare(c, checked) {
   if (typeof c === 'string') c = JSON.parse(c);
@@ -1433,7 +1480,7 @@ function renderCompare() {
           </div>
         </div>
         <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
-          <button class="filt-btn" style="font-size:11px;padding:4px 10px;flex:1" onclick="openCandDetail(${escJson(c)})">Ver perfil</button>
+          <button class="filt-btn" style="font-size:11px;padding:4px 10px;flex:1" onclick="openCandByEmail('${c.email}')">Ver perfil</button>
           <button class="filt-btn out" style="font-size:11px;padding:4px 10px" onclick="openScheduleModal('${c.email}','${escHtml(c.name)}')">📅</button>
         </div>
         <div style="margin-top:6px">
@@ -1509,7 +1556,7 @@ function renderAgendaPipeline(interviews) {
             </div>
             <div style="display:flex;gap:4px;flex-shrink:0">
               <span class="pill ${i.status === 'Realizada' ? 'pg' : i.status === 'Cancelada' ? 'pr' : 'pb'}" style="font-size:9px">${i.status}</span>
-              <button class="filt-btn out" style="padding:2px 8px;font-size:10px" onclick="editInterview(${escJson(i)})">Editar</button>
+              <button class="filt-btn out" style="padding:2px 8px;font-size:10px" onclick="editInterviewById('${i.id}')">Editar</button>
               <button class="filt-btn" style="padding:2px 8px;font-size:10px;background:var(--coral)" onclick="deleteInterview('${i.id}')">✕</button>
             </div>
           </div>
@@ -1580,7 +1627,7 @@ function renderAgenda() {
       </div>
       <div class="ag-actions">
         <span class="pill ${i.status === 'Realizada' ? 'pg' : i.status === 'Cancelada' ? 'pr' : 'pb'}">${i.status}</span>
-        <button class="filt-btn out" style="padding:4px 10px;font-size:11px" onclick="editInterview(${escJson(i)})">Editar</button>
+        <button class="filt-btn out" style="padding:4px 10px;font-size:11px" onclick="editInterviewById('${i.id}')">Editar</button>
         <button class="filt-btn" style="padding:4px 10px;font-size:11px;background:var(--coral)" onclick="deleteInterview('${i.id}')">✕</button>
       </div>
     </div>`;
